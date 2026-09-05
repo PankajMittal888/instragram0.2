@@ -2,9 +2,11 @@ import axios from 'axios'
 import React, { useState } from 'react'
 import { ClipLoader } from 'react-spinners'
 import { serverUrl } from '../App'
+import { useNavigate } from 'react-router-dom'
 
 function ForgotPassword() {
     const [step,setStep]=useState(1)
+    const navigate = useNavigate()
     const [inputClicked,setInputClicked]=useState({
         email:false,
         otp:false,
@@ -58,6 +60,7 @@ const handleStep3=async ()=>{
         const result=await axios.post(`${serverUrl}/api/auth/resetPassword`,{email,password:newPassword},{withCredentials:true})
         console.log(result.data)
         setLoading(false)
+           navigate("/")
     } catch (error) {
         console.log(error)
         setLoading(false)

@@ -1,4 +1,5 @@
 import sendMail from "../config/Mail.js"
+import mongoose from "mongoose"
 import genToken from "../config/token.js"
 import User from "../models/user.model.js"
 import bcrypt from "bcryptjs"
@@ -27,6 +28,9 @@ export const signUp=async (req,res)=>{
             password:hashedPassword
         })
 
+        console.log("USER CREATED:", user);
+console.log("DATABASE:", mongoose.connection.name);
+
         const token=await genToken(user._id)
 
         res.cookie("token",token,{
@@ -46,17 +50,32 @@ export const signUp=async (req,res)=>{
 export const signIn=async (req,res)=>{
     try {
         const {password,userName}=req.body
+
+       console.log("========== LOGIN DEBUG ==========");
+        console.log("USERNAME:", userName);
+        console.log("PASSWORD RECEIVED:", password);
+
+        
        
-         const user=await User.findOne({userName})
-        if(!user){
-            return res.status(400).json({message:"User not found !"})
-        }
+        const user=await User.findOne({userName})
 
-     const isMatch=await bcrypt.compare(password,user.password)
+if(!user){
+    return res.status(400).json({message:"User not found !"})
+}
 
-       if(!isMatch){
-         return res.status(400).json({message:"Incorrect Password !"})
-       }
+console.log("USER FOUND EMAIL:", user.email)
+console.log("USER FOUND USERNAME:", user.userName)
+console.log("LOGIN PASSWORD:", password)
+console.log("STORED HASH:", user.password)
+console.log("HASH LENGTH:", user.password?.length)
+
+const isMatch = await bcrypt.compare(password, user.password)
+
+console.log("PASSWORD MATCH:", isMatch)
+
+if(!isMatch){
+    return res.status(400).json({message:"Incorrect Password !"})
+}
 
         const token=await genToken(user._id)
 
@@ -121,28 +140,98 @@ export const verifyOtp=async (req,res)=>{
      user.resetOtp=undefined
      user.otpExpires=undefined
 await user.save()
+
+console.log("OTP VERIFIED:", user.email, user.isOtpVerified);
+
 return res.status(200).json({message:"otp verified"})
     } catch (error) {
          return res.status(500).json({message:`verify otp error ${error}`})
     }
 }
 
-export const resetPassword=async (req,res)=>{
+// export const resetPassword=async (req,res)=>{
+//     try {
+//         const {email,password}=req.body
+//         const user =await User.findOne({email})
+
+//         console.log("RESET REQUEST:", email);
+//         console.log("USER OTP STATUS:", user?.isOtpVerified);
+//         if(!user || !user.isOtpVerified){
+//             return res.status(400).json({message:"otp verfication required"})
+//         }
+
+//         const hashedPassword=await bcrypt.hash(password,10)
+//         user.password=hashedPassword
+//         user.isOtpVerified=false
+// await user.save()
+
+// return res.status(200).json({message:"password reset successfully"})
+
+//     } catch (error) {
+//          return res.status(500).json({message:`reset otp error ${error}`})
+//     }
+// }
+
+
+
+export const resetPassword = async (req, res) => {
     try {
-        const {email,password}=req.body
-        const user =await User.findOne({email})
-        if(!user || !user.isOtpVerified){
-            return res.status(400).json({message:"otp verfication required"})
+        const { email, password } = req.body;
+
+        console.log("RESET REQUEST:", email);
+
+        const user = await User.findOne({ email });
+
+        console.log("USER OTP STATUS:", user?.isOtpVerified);
+
+        if (!user || !user.isOtpVerified) {
+            return res.status(400).json({
+                message: "OTP verification required"
+            });
         }
 
-        const hashedPassword=await bcrypt.hash(password,10)
-        user.password=hashedPassword
-        user.isOtpVerified=false
-await user.save()
+        console.log("STEP 1: OTP CHECK PASSED");
 
-return res.status(200).json({message:"password reset successfully"})
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        console.log("STEP 2: PASSWORD HASHED");
+
+        user.password = hashedPassword;
+        user.isOtpVerified = false;
+
+        await user.save();
+
+
+        const checkUser = await User.findOne({email})
+
+console.log("RESET SAVED HASH:", checkUser.password)
+console.log(
+    "RESET PASSWORD TEST:",
+    await bcrypt.compare(password, checkUser.password)
+)
+
+        console.log("STEP 3: PASSWORD SAVED SUCCESSFULLY");
+
+
+        console.log("NEW PASSWORD SAVED:", user.password);
+
+// const checkUser = await User.findOne({ email });
+
+console.log("PASSWORD FROM DB:", checkUser.password);
+
+const testMatch = await bcrypt.compare(password, checkUser.password);
+
+console.log("NEW PASSWORD MATCH TEST:", testMatch);
+
+        return res.status(200).json({
+            message: "Password reset successfully"
+        });
 
     } catch (error) {
-         return res.status(500).json({message:`reset otp error ${error}`})
+        console.log("RESET ERROR:", error);
+
+        return res.status(500).json({
+            message: error.message
+        });
     }
-}
+};
